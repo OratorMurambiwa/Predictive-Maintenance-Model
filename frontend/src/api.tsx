@@ -1,4 +1,6 @@
-const API_BASE = "http://localhost:8000";
+const API_BASE = (
+  import.meta.env.VITE_API_URL || "http://localhost:8000"
+).replace(/\/$/, "");
 
 export interface PredictionResult {
   rul: number;
@@ -19,8 +21,23 @@ export async function predictRUL(file: File): Promise<PredictionResult> {
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || "Prediction failed");
+    let message = `Prediction failed (${response.status})`;
+
+    try {
+      const error = await response.json();
+
+      if (typeof error.detail === "string") {
+        message = error.detail;
+      } else if (Array.isArray(error.detail)) {
+        message = error.detail
+          .map((item: { msg?: string }) => item.msg || "Invalid input")
+          .join("; ");
+      }
+    } catch {
+      // Keep the fallback message if the response is not JSON.
+    }
+
+    throw new Error(message);
   }
 
   return response.json();
